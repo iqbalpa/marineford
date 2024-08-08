@@ -5,6 +5,8 @@ from selenium import webdriver
 from logger import configure_logger
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import NoSuchElementException
+
 
 warnings.filterwarnings('ignore')
 
@@ -19,6 +21,30 @@ auth_logger = configure_logger('auth', 'blue')
 course_plan_logger = configure_logger('course_plan', 'yellow')
 api_logger = configure_logger('api', 'green')
 
+# Helper Function
+def configure_driver():
+  options = webdriver.ChromeOptions()
+  options.add_argument('--ignore-certificate-errors')
+  options.add_argument('--ignore-ssl-errors')
+  driver = webdriver.Chrome('chromedriver.exe', options=options)
+  return driver
+
+
+def load_credentials(filename):
+  with open(filename, "r") as file:
+    creds = [line.strip() for line in file]
+  return creds
+
+
+def load_courses(filename):
+  matkul = {}
+  with open(filename, "r") as file:
+    for line in file:
+      name, code, kelas = line.strip().split('___')
+      matkul[kelas] = (name, code)
+  return matkul
+
+
 def login(driver, username, password, display_name):
   auth_logger.info("Logging in...")
   while True:
@@ -30,132 +56,161 @@ def login(driver, username, password, display_name):
       element.send_keys(password)
       element.send_keys(Keys.RETURN)
     except Exception as e:
-      if ("Logout Counter" in driver.page_source or display_name in driver.page_source):
+      if "Logout Counter" in driver.page_source or display_name in driver.page_source:
         auth_logger.info("Logged in!")
         break
       continue
     try:
       driver.get(HOME_PAGE)
-      if ("Logout Counter" in driver.page_source or display_name in driver.page_source):
+      if "Logout Counter" in driver.page_source or display_name in driver.page_source:
         auth_logger.info("Logged in!")
         break
       raise Exception
     except:
       continue
 
-def submit_course_plan(token, matkul, cookies):
-    headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-      'Referer': COURSE_PLAN_PAGE,
-    }
-    
-    # Prepare payload with all desired courses
-    payload = {
-      'tokens': token,
-      'comment': '',
-      'submit': 'Simpan IRS'
-    }
-    desired_kelas = set(matkul.keys())
-    for name, code in matkul.values():
-      payload[f'c[{name}]'] = code
-    
-    while True:
+
+def logout(driver):
+  print("Logging out...")
+  while True:
+    try:
+      driver.get(HOME_PAGE)
+      driver.find_element(By.PARTIAL_LINK_TEXT, 'Logout').click()
+    except:
       try:
-        # Submit course plan
-        response = requests.post(SUBMIT_COURSE_PLAN_URL, data=payload, headers=headers, cookies=cookies, verify=False)
-        api_logger.info(f"Response Status Code: {response.status_code}")
+        driver.find_element(By.ID, "u")
+        print("Logged out!")
+        break
+      except:
+        continue
+    try:
+      driver.get(AUTH_PAGE)
+      driver.find_element(By.ID, "u")
+      print("Logged out!")
+      break
+    except:
+      continue
 
-        if response.status_code == 200:
-          api_logger.info("Course plan submitted successfully!")
 
-          html_content = response.text
-          soup = BeautifulSoup(html_content, 'html.parser')
-          table = soup.find('table', class_='box')
+def create_payload(matkul, token):
+  payload = {
+    'tokens': token,
+    'comment': '',
+    'submit': 'Simpan IRS'
+  }
+  for name, code in matkul.values():
+    payload[f'c[{name}]'] = code
+  return payload
 
-          submitted_kelas = set()
-          rows = table.find_all('tr')
-          for row in rows:
-            cols = row.find_all('td')
-            if len(cols) > 2:
-              nama_mk = cols[2].get_text(strip=True)
-              span_text = cols[2].find('span')
-              if span_text:
-                submitted_kelas.add(span_text.get_text(strip=True))
-              else:
-                submitted_kelas.add(nama_mk)
-          
-          api_logger.info(f'SUBMITTED KELAS: {submitted_kelas}')
-          api_logger.info(f'DESIRED KELAS: {desired_kelas}')
 
-          # Check if all desired classes are in submitted classes
-          if desired_kelas == submitted_kelas:
-            api_logger.info("All desired classes have been submitted!")
-            break
-          else:
-            api_logger.info("Not all desired classes were submitted. Retrying...")
-        else:
-          api_logger.error(f"Failed to submit course plan. Status code: {response.status_code}")
-          api_logger.error(f"Response content: {response.text}")
-          raise requests.exceptions.RequestException("Non-200 status code received")
-      except requests.exceptions.RequestException as e:
-        # Handle specific exceptions
-        if isinstance(e, requests.exceptions.ConnectTimeout):
-          api_logger.warning("Connection timed out. Retrying...")
-        else:
-          api_logger.error(f"An error occurred: {e}")
+def create_headers():
+  headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'Referer': COURSE_PLAN_PAGE,
+  }
+  return headers
 
-def main():
-  options = webdriver.ChromeOptions()
-  options.add_argument('--ignore-certificate-errors')
-  options.add_argument('--ignore-ssl-errors')
-  driver = webdriver.Chrome('chromedriver.exe', options=options)
 
-  # Load credentials
-  with open("credentials.txt", "r") as file:
-    creds = [line.strip() for line in file]
+def get_submitted_kelas(content):
+  html_content = content
+  soup = BeautifulSoup(html_content, 'html.parser')
+  table = soup.find('table', class_='box')
+
+  submitted_kelas = set()
+  rows = table.find_all('tr')
+  for row in rows:
+    cols = row.find_all('td')
+    if len(cols) > 2:
+      nama_mk = cols[2].get_text(strip=True)
+      span_text = cols[2].find('span')
+      if span_text:
+        submitted_kelas.add(span_text.get_text(strip=True))
+      else:
+        submitted_kelas.add(nama_mk)
+  return submitted_kelas
+
+
+def war():
+  driver = configure_driver()
+  creds = load_credentials("credentials.txt")
   username, password, display_name, common_matkul, chosen_matkul = creds
-  
-  # Load courses
-  matkul = {}
-  with open("matkul.txt", "r") as file:
-    for line in file:
-      name, code, kelas = line.strip().split('___')
-      matkul[kelas] = (name, code)
+  matkul = load_courses("matkul.txt")
 
   auth_logger.info("Credentials and courses loaded!")
   auth_logger.debug(f"Credentials: {creds}")
   auth_logger.debug(f"Courses: {matkul}")
-  
+
+  #========= 1. Login
   login(driver, username, password, display_name)
-  
-  # Navigate to the course plan page and retrieve the token
+
+  #========= 2. Access Course Plan Page
+  token = ''
   while True:
     course_plan_logger.info("Accessing course plan page to retrieve token...")
     try:
       driver.get(COURSE_PLAN_PAGE)
-      if "Pengisian IRS" in driver.page_source:
+      if ("Anda tidak dapat mengisi IRS" in driver.page_source):
+        raise NoSuchElementException
+      if (
+        "Pengisian IRS" in driver.page_source or 
+        common_matkul in driver.page_source or 
+        chosen_matkul in driver.page_source
+      ):
         course_plan_logger.info("Page loaded and 'Pengisian IRS' found!")
+        token_element = driver.find_element(By.XPATH, "//input[@name='tokens']")
+        token_value = token_element.get_attribute("value")
+        token = token_value
         break
-      else:
-        raise Exception("Page content check failed")
-    except Exception as e:
-      course_plan_logger.warning(f"Attempt failed: {e}")
-      continue
-  
-  token_element = driver.find_element(By.XPATH, "//input[@name='tokens']")
-  token_value = token_element.get_attribute("value")
+      raise NoSuchElementException
+    except NoSuchElementException:
+      logout(driver)
+      login(driver, username, password, display_name)
 
-  # Extract cookies from the browser
+  #========= 3. Send the Payload to the API
+  payload = create_payload(matkul, token)
+  headers = create_headers()
   cookies = {cookie['name']: cookie['value'] for cookie in driver.get_cookies()}
+
+  while True:
+    try:
+      response = requests.post(
+        SUBMIT_COURSE_PLAN_URL, 
+        data=payload, 
+        headers=headers, 
+        cookies=cookies, 
+        verify=False
+      )
+      api_logger.info(f"Response Status Code: {response.status_code}")
+
+      if response.status_code == 200:
+        api_logger.info("Course plan submitted successfully!")
+
+        desired_kelas = set(matkul.keys())
+        submitted_kelas = get_submitted_kelas(response.text)
+        api_logger.info(f'SUBMITTED KELAS: {submitted_kelas}')
+        api_logger.info(f'DESIRED KELAS: {desired_kelas}')
+
+        if desired_kelas == submitted_kelas:
+          api_logger.info("All desired classes have been submitted!")
+          break
+        else:
+          api_logger.info("Not all desired classes were submitted. Retrying...")
+
+      else:
+        api_logger.error(f"Failed to submit course plan. Status code: {response.status_code}")
+        api_logger.error(f"Response content: {response.text}")
+        raise Exception("Non-200 status code received")
   
-  if token_value:
-    course_plan_logger.info("Token retrieved!")
-    submit_course_plan(token_value, matkul, cookies)
-  else:
-    course_plan_logger.error("Token not found.")
+    except Exception as e:
+      if isinstance(e, requests.exceptions.ConnectTimeout):
+        api_logger.warning("Connection timed out. Retrying...")
+      else:
+        api_logger.error(f"An error occurred: {e}")
+
   driver.quit()
 
+
 if __name__ == "__main__":
-  main()
+  war()
