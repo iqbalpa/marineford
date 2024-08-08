@@ -35,6 +35,7 @@ def login(driver, username, password, display_name):
         except:
             continue
 
+
 def submit_course_plan(token, matkul, cookies):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
@@ -42,25 +43,30 @@ def submit_course_plan(token, matkul, cookies):
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
         'Referer': COURSE_PLAN_PAGE,
     }
+    
+    # Prepare payload with all desired courses
     payload = {
         'tokens': token,
         'comment': '',
         'submit': 'Simpan IRS'
     }
-    
-    for name, code in matkul.items():
+    desired_kelas = set(matkul.keys())
+    for name, code in matkul.values():
         payload[f'c[{name}]'] = code
-    try:
-        response = requests.post(SUBMIT_COURSE_PLAN_URL, data=payload, headers=headers, cookies=cookies, verify=False)
-        print(response)
-        if response.status_code == 200:
+    
+    while True:
+        try:
+          # Submit course plan
+          response = requests.post(SUBMIT_COURSE_PLAN_URL, data=payload, headers=headers, cookies=cookies, verify=False)
+          print(response)
+          if response.status_code == 200:
             print("Course plan submitted successfully!")
 
             html_content = response.text
             soup = BeautifulSoup(html_content, 'html.parser')
             table = soup.find('table', class_='box')
 
-            submitted_matkul = []
+            submitted_kelas = set()
             rows = table.find_all('tr')
             for row in rows:
               cols = row.find_all('td')
@@ -68,14 +74,32 @@ def submit_course_plan(token, matkul, cookies):
                 nama_mk = cols[2].get_text(strip=True)
                 span_text = cols[2].find('span')
                 if span_text:
-                    submitted_matkul.append(span_text.get_text(strip=True))
+                  submitted_kelas.add(span_text.get_text(strip=True))
                 else:
-                    submitted_matkul.append(nama_mk)
-        else:
+                  submitted_kelas.add(nama_mk)
+            print(f'SUBMITTED KELAS\n', submitted_kelas)
+            print(f'DESIRED KELAS\n', desired_kelas)
+
+            # Check if all desired classes are in submitted classes
+            if desired_kelas == submitted_kelas:
+              print("All desired classes have been submitted!")
+              break
+            else:
+              print("Not all desired classes were submitted. Retrying...")
+              time.sleep(1)  # Wait a bit before retrying
+          else:
             print(f"Failed to submit course plan. Status code: {response.status_code}")
             print("Response content:", response.text)
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred: {e}")
+            break
+        except requests.exceptions.RequestException as e:
+          # Handle specific exceptions
+          if isinstance(e, requests.exceptions.ConnectTimeout):
+            print("Connection timed out. Retrying...")
+          else:
+            print(f"An error occurred: {e}")
+          time.sleep(1)  # Wait a bit before retrying
+
+
 
 def main():
     options = webdriver.ChromeOptions()
@@ -92,8 +116,8 @@ def main():
     matkul = {}
     with open("matkul.txt", "r") as file:
         for line in file:
-            name, code = line.split()
-            matkul[name] = code
+            name, code, kelas = line.strip().split('___')
+            matkul[kelas] = (name, code)
 
     print("Credentials and courses loaded!")
     print(creds)
