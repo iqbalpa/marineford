@@ -98,7 +98,7 @@ def submit_course_plan(token, matkul, cookies):
         else:
           api_logger.error(f"Failed to submit course plan. Status code: {response.status_code}")
           api_logger.error(f"Response content: {response.text}")
-          break
+          raise requests.exceptions.RequestException("Non-200 status code received")
       except requests.exceptions.RequestException as e:
         # Handle specific exceptions
         if isinstance(e, requests.exceptions.ConnectTimeout):
@@ -131,8 +131,18 @@ def main():
   login(driver, username, password, display_name)
   
   # Navigate to the course plan page and retrieve the token
-  course_plan_logger.info("Accessing course plan page to retrieve token...")
-  driver.get(COURSE_PLAN_PAGE)
+  while True:
+    course_plan_logger.info("Accessing course plan page to retrieve token...")
+    try:
+      driver.get(COURSE_PLAN_PAGE)
+      if "Pengisian IRS" in driver.page_source:
+        course_plan_logger.info("Page loaded and 'Pengisian IRS' found!")
+        break
+      else:
+        raise Exception("Page content check failed")
+    except Exception as e:
+      course_plan_logger.warning(f"Attempt failed: {e}")
+      continue
   
   token_element = driver.find_element(By.XPATH, "//input[@name='tokens']")
   token_value = token_element.get_attribute("value")
