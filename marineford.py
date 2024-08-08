@@ -1,9 +1,8 @@
-import logging
-import colorlog
 import requests
 import warnings
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from logger import configure_logger
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
@@ -14,27 +13,6 @@ AUTH_PAGE = "https://academic.ui.ac.id/main/Authentication/"
 HOME_PAGE = "https://academic.ui.ac.id/main/Welcome/Index"
 COURSE_PLAN_PAGE = "https://academic.ui.ac.id/main/CoursePlan/CoursePlanEdit"
 SUBMIT_COURSE_PLAN_URL = "https://academic.ui.ac.id/main/CoursePlan/CoursePlanSave"
-
-# Configure loggers with color
-def configure_logger(name, color):
-  logger = colorlog.getLogger(name)
-  logger.setLevel(logging.INFO)
-  
-  handler = logging.StreamHandler()
-  formatter = colorlog.ColoredFormatter(
-    '%(asctime)s - %(log_color)s%(levelname)s%(reset)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    log_colors={
-      'DEBUG': color,
-      'INFO': color,
-      'WARNING': 'yellow',
-      'ERROR': 'red',
-      'CRITICAL': 'bold_red',
-    }
-  )
-  handler.setFormatter(formatter)
-  logger.addHandler(handler)
-  return logger
 
 # Configure loggers with specific colors
 auth_logger = configure_logger('auth', 'blue')

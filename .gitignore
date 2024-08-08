@@ -1,3 +1,4 @@
 *.exe
 credentials.txt
 matkul.txt
+__pycache__/
