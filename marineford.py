@@ -60,15 +60,17 @@ def submit_course_plan(token, matkul, cookies):
             soup = BeautifulSoup(html_content, 'html.parser')
             table = soup.find('table', class_='box')
 
-            nama_mk_list = []
+            submitted_matkul = []
             rows = table.find_all('tr')
             for row in rows:
               cols = row.find_all('td')
               if len(cols) > 2:
-                nama_mk = cols[2].text.strip()
-                nama_mk_list.append(nama_mk)
-            print(nama_mk_list)
-
+                nama_mk = cols[2].get_text(strip=True)
+                span_text = cols[2].find('span')
+                if span_text:
+                    submitted_matkul.append(span_text.get_text(strip=True))
+                else:
+                    submitted_matkul.append(nama_mk)
         else:
             print(f"Failed to submit course plan. Status code: {response.status_code}")
             print("Response content:", response.text)
