@@ -1,3 +1,4 @@
+import time
 import requests
 import warnings
 from bs4 import BeautifulSoup
@@ -71,7 +72,7 @@ def login(driver, username, password, display_name):
 
 
 def logout(driver):
-  print("Logging out...")
+  auth_logger.info("Logging out...")
   while True:
     try:
       driver.get(HOME_PAGE)
@@ -79,14 +80,14 @@ def logout(driver):
     except:
       try:
         driver.find_element(By.ID, "u")
-        print("Logged out!")
+        auth_logger.info("Logged out!")
         break
       except:
         continue
     try:
       driver.get(AUTH_PAGE)
       driver.find_element(By.ID, "u")
-      print("Logged out!")
+      auth_logger.info("Logged out!")
       break
     except:
       continue
@@ -154,7 +155,7 @@ def war():
       if ("Anda tidak dapat mengisi IRS" in driver.page_source):
         raise NoSuchElementException
       if (
-        "Pengisian IRS" in driver.page_source or 
+        "Batas pengambilan mata kuliah" in driver.page_source or 
         common_matkul in driver.page_source or 
         chosen_matkul in driver.page_source
       ):
