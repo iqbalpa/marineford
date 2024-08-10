@@ -194,6 +194,7 @@ def war():
       login(driver, username, password, display_name)
 
   #========= 3. Send the Payload to the API
+  api_logger.info('Submitting course plan...')
   payload = create_payload(matkul, token)
   headers = create_headers(COURSE_PLAN_PAGE)
   cookies = {cookie['name']: cookie['value'] for cookie in driver.get_cookies()}
