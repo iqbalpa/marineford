@@ -216,8 +216,8 @@ def war():
 
         desired_kelas = set(matkul.keys())
         submitted_kelas = get_submitted_kelas(response.text)
-        api_logger.info(f'SUBMITTED KELAS: {submitted_kelas}')
-        api_logger.info(f'DESIRED KELAS: {desired_kelas}')
+        api_logger.info(f'SUBMITTED CLASSES: {submitted_kelas}')
+        api_logger.info(f'DESIRED CLASSES: {desired_kelas}')
 
         if desired_kelas == submitted_kelas:
           api_logger.info("All desired classes have been submitted!")
