@@ -7,10 +7,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 
-
 warnings.filterwarnings('ignore')
 
-# URLs
+#========== URLs ==========
 AUTH_PAGE = "https://academic.ui.ac.id/main/Authentication/"
 HOME_PAGE = "https://academic.ui.ac.id/main/Welcome/Index"
 COURSE_PLAN_PAGE = "https://academic.ui.ac.id/main/CoursePlan/CoursePlanEdit"
@@ -18,13 +17,13 @@ CEK_IRS_URL = 'https://academic.ui.ac.id/main/CoursePlan/CoursePlanViewCheck'
 IRS_DONE_PAGE = 'https://academic.ui.ac.id/main/CoursePlan/CoursePlanDone'
 SUBMIT_COURSE_PLAN_URL = "https://academic.ui.ac.id/main/CoursePlan/CoursePlanSave"
 
-# Configure loggers with specific colors
+#========== Configure loggers ==========
 auth_logger = configure_logger('auth', 'blue')
 course_plan_logger = configure_logger('course_plan', 'yellow')
 api_logger = configure_logger('api', 'green')
 cek_irs_logger = configure_logger('cek_irs', 'purple')
 
-# Helper Function
+#========== Helper Function ==========
 def configure_driver():
   options = webdriver.ChromeOptions()
   options.add_argument('--ignore-certificate-errors')
@@ -157,6 +156,8 @@ def get_posisi_kelas(content):
   return results
 
 
+
+#========== Main Function ==========
 def war():
   driver = configure_driver()
   creds = load_credentials("credentials.txt")
